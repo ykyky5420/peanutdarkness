@@ -31,12 +31,12 @@
     
     #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50; }
     .action-btn { position: absolute; width: 65px; height: 65px; border-radius: 50%; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); color: white; font-size: 22px; font-weight: bold; display: flex; justify-content: center; align-items: center; pointer-events: auto; touch-action: none; user-select: none; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-    .btn-z { bottom: 30px; right: 110px; }
-    .btn-x { bottom: 110px; right: 30px; }
+    
+    
     .action-btn:active { background: rgba(255,255,255,0.6); color: black; }
     body { touch-action: none; } 
     
-    .joystick-zone { position: absolute; bottom: 30px; left: 30px; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15); pointer-events: auto; touch-action: none; }
+    
     .joystick-knob { position: absolute; top: 50%; left: 50%; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.3); transform: translate(-50%, -50%); pointer-events: none; }
     
     #chat-ui { position: absolute; top: 280px; right: 30px; width: 220px; height: 300px; display: none; flex-direction: column; gap: 5px; z-index: 45; }
@@ -53,6 +53,20 @@
     .go-record { font-size: 20px; color: #00FFFF; margin-top: 15px; font-weight: bold; }
     .btn-return { background: #222; color: #d4a017; padding: 15px 40px; font-size: 18px; border-radius: 10px; border: 1px solid #d4a017; cursor: pointer; margin-top: 40px; transition: 0.3s; }
     .btn-return:hover { background: #d4a017; color: black; transform: scale(1.05); }
+  
+    
+    
+    
+    
+    .fs-btn { position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 110; pointer-events: auto; transition: 0.2s; }
+    .fs-btn:active { background: rgba(255,255,255,0.4); }
+  
+    .joystick-zone { position: absolute; bottom: 55px; left: 30px; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15); pointer-events: auto; touch-action: none; }
+    .btn-z { bottom: 55px; right: 110px; }
+    .btn-x { bottom: 135px; right: 30px; }
+    
+    .fs-btn { position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 110; pointer-events: auto; transition: 0.2s; }
+    .fs-btn:active { background: rgba(255,255,255,0.4); }
   </style>
 </head>
 <body>
@@ -91,6 +105,7 @@
   </div>
 
   <div id="mobile-ui">
+    <div class="fs-btn" onclick="toggleFullScreen()" title="전체 화면">⛶</div>
     <div id="joystick-zone" class="joystick-zone">
       <div id="joystick-knob" class="joystick-knob"></div>
     </div>
@@ -334,6 +349,20 @@
     });
 
     let joyDx = 0; let joyDy = 0;
+
+    
+    // 전체 화면 전환 섭리
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+              sysMessages.push({ text: '전체 화면 전환에 실패했습니다.', alpha: 255, y: window.innerHeight - 150 });
+          });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
 
     function toggleLantern() {
       if (gameState === 'PLAY') lanternOn = !lanternOn;
