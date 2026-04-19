@@ -270,8 +270,12 @@
         battery = min(100, battery + 10);
     });
 
+    // 어둠을 담당할 캔버스 변수 선언
+    let darknessLayer;
+
     function setup() {
       createCanvas(windowWidth, windowHeight);
+      darknessLayer = createGraphics(windowWidth, windowHeight);
       noCursor();
     }
 
@@ -589,28 +593,35 @@
       }
     }
 
+    // ✨ 겹쳐진 빛이 먹칠로 변하지 않도록 '지우개(erase)'의 섭리로 어둠을 깎아냅니다.
     function drawProperLighting(flickerMod, lightRadius) {
-      let ctx = drawingContext;
-      ctx.fillStyle = "rgba(0, 0, 0, 1)"; // 완벽한 칠흑으로 시야 밖을 가립니다.
-      ctx.beginPath(); ctx.rect(0, 0, width, height);
+      if (!darknessLayer) darknessLayer = createGraphics(windowWidth, windowHeight);
+      
+      // 1. 도화지 전체를 단 1%의 빛도 없는 100% 완벽한 칠흑으로 덮습니다.
+      darknessLayer.clear();
+      darknessLayer.background(0);
 
-      function punchHole(x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2, true); }
-      function punchCone(x, y, r, sa, ea) { ctx.moveTo(x, y); ctx.arc(x, y, r, ea, sa, true); ctx.closePath(); }
+      // 2. 수학적 구멍 뚫기를 버리고, 어둠을 투명하게 지워버리는 섭리를 시작합니다.
+      darknessLayer.erase();
+      darknessLayer.noStroke();
+      darknessLayer.fill(255);
 
-      if (lanternOn) punchCone(width/2, height/2, lightRadius, playerDir - currentFov/2, playerDir + currentFov/2);
-      punchHole(width/2, height/2, 55 * flickerMod);
+      if (lanternOn) {
+        darknessLayer.arc(width/2, height/2, lightRadius*2, lightRadius*2, playerDir - currentFov/2, playerDir + currentFov/2, PIE);
+      }
+      darknessLayer.circle(width/2, height/2, 110 * flickerMod);
 
       for (let id in serverWorld.players) {
         if (id === socket.id) continue;
         let op = serverWorld.players[id];
         let sx = op.x - (playerX - width/2); let sy = op.y - (playerY - height/2);
-        if (op.lantern) punchCone(sx, sy, 600, op.dir - currentFov/2, op.dir + currentFov/2);
-        punchHole(sx, sy, 55);
+        if (op.lantern) darknessLayer.arc(sx, sy, 1200, 1200, op.dir - currentFov/2, op.dir + currentFov/2, PIE);
+        darknessLayer.circle(sx, sy, 110);
       }
 
       for (let s of stations) {
         let sx = s.x - (playerX - width/2); let sy = s.y - (playerY - height/2);
-        if (sx > -500 && sx < width+500 && sy > -500 && sy < height+500) punchHole(sx, sy, 350);
+        if (sx > -500 && sx < width+500 && sy > -500 && sy < height+500) darknessLayer.circle(sx, sy, 700);
       }
 
       if (serverWorld.meteors) {
@@ -618,19 +629,25 @@
           let mx = m.x - (playerX - width/2); let my = m.y - (playerY - height/2);
           let age = serverWorld.serverTime - m.startTime;
           let mRad = map(age, 0, m.duration, 800, 0);
-          if (mRad > 0) punchHole(mx, my, mRad);
+          if (mRad > 0) darknessLayer.circle(mx, my, mRad * 2);
         }
       }
 
       if (serverWorld.fMarks) {
         for (let mk of serverWorld.fMarks) {
           let mx = mk.x - (playerX - width/2); let my = mk.y - (playerY - height/2);
-          punchHole(mx, my, 350);
+          darknessLayer.circle(mx, my, 700);
         }
       }
-      ctx.fill();
+      darknessLayer.noErase(); // 지우기 종료
 
+      // 3. 지워진 구멍(시야)이 뚫린 칠흑의 장막을 게임 화면 위에 씌웁니다.
+      imageMode(CORNER);
+      image(darknessLayer, 0, 0);
+
+      // 4. 시야 구멍 위로 빛의 은은한 오라(그라데이션)를 덧씌워 따뜻함을 불어넣습니다.
       blendMode(ADD);
+      let ctx = drawingContext;
       if (lanternOn) {
         let g = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, lightRadius);
         g.addColorStop(0, `rgba(255, ${map(battery, 0, 20, 100, 200)}, 100, 0.4)`); g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -789,6 +806,7 @@
       blendMode(BLEND);
     }
     
+    // ✨ 미니맵에도 동일한 지우개(Erase) 마법 적용 완료
     function drawRealtimeMinimap(lightRadius) {
       let mmSize = 220; let scale = mmSize / MAP_SIZE; let mmX = width - mmSize/2 - 30; let mmY = mmSize/2 + 30;
       push(); translate(mmX, mmY); 
@@ -801,33 +819,36 @@
       textSize(3500 * scale); text(serverWorld.targetWord, 0, 0); 
       pop();
 
-      let ctx = drawingContext;
       if (!fullVision) {
-          ctx.fillStyle = "rgba(0, 0, 0, 1)"; // 미니맵도 단 1%의 빛도 허용하지 않는 완벽한 칠흑으로 막습니다.
-          ctx.beginPath(); ctx.rect(-mmSize, -mmSize, mmSize*2, mmSize*2);
+          if (!window.mmDark) window.mmDark = createGraphics(mmSize, mmSize);
+          let md = window.mmDark;
+          md.clear(); md.background(0);
+          
+          md.erase(); md.noStroke(); md.fill(255);
 
-          function punchHole(x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2, true); }
-          function punchCone(x, y, r, sa, ea) { ctx.moveTo(x, y); ctx.arc(x, y, r, ea, sa, true); ctx.closePath(); }
-
-          if (lanternOn) punchCone(ox, oy, lightRadius * scale, playerDir - currentFov/2, playerDir + currentFov/2);
+          if (lanternOn) md.arc(ox + mmSize/2, oy + mmSize/2, lightRadius * scale * 2, lightRadius * scale * 2, playerDir - currentFov/2, playerDir + currentFov/2, PIE);
           
           if (serverWorld.meteors) {
             for (let m of serverWorld.meteors) {
               let age = (serverWorld.serverTime || Date.now()) - m.startTime;
               let mRad = map(age, 0, m.duration, 800, 0) * scale;
               if (mRad > 0) {
-                let mx = (m.x - MAP_CENTER) * scale; let my = (m.y - MAP_CENTER) * scale;
-                punchHole(mx, my, mRad);
+                let mx = (m.x - MAP_CENTER) * scale + mmSize/2; let my = (m.y - MAP_CENTER) * scale + mmSize/2;
+                md.circle(mx, my, mRad * 2);
               }
             }
           }
           if (serverWorld.fMarks) {
             for (let mk of serverWorld.fMarks) {
-              let mx = (mk.x - MAP_CENTER) * scale; let my = (mk.y - MAP_CENTER) * scale;
-              punchHole(mx, my, 350 * scale);
+              let mx = (mk.x - MAP_CENTER) * scale + mmSize/2; let my = (mk.y - MAP_CENTER) * scale + mmSize/2;
+              md.circle(mx, my, 350 * scale * 2);
             }
           }
-          ctx.fill();
+          md.noErase();
+          
+          imageMode(CENTER);
+          image(md, 0, 0);
+          imageMode(CORNER);
       }
 
       for (let s of stations) { fill(255); textAlign(CENTER, CENTER); textSize(24); text("⚡", (s.x - MAP_CENTER) * scale, (s.y - MAP_CENTER) * scale); }
@@ -884,7 +905,13 @@
       fill(255, 200, 0); noStroke(); text(`⏱ 흐르는 시간: ${elapsed}초`, 30, 130);
     }
     
-    function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+    function windowResized() { 
+        resizeCanvas(windowWidth, windowHeight); 
+        if(darknessLayer) {
+            darknessLayer.remove();
+            darknessLayer = createGraphics(windowWidth, windowHeight);
+        }
+    }
   </script>
 </body>
 </html>
