@@ -60,9 +60,10 @@
     .fs-btn { position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 110; pointer-events: auto; transition: 0.2s; }
     .fs-btn:active { background: rgba(255,255,255,0.4); }
   
-    .joystick-zone { position: absolute; bottom: 55px; left: 30px; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15); pointer-events: auto; touch-action: none; }
-    .btn-z { bottom: 55px; right: 110px; }
-    .btn-x { bottom: 135px; right: 30px; }
+    .joystick-base { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15); transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 1; }
+    .joystick-zone { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: auto; touch-action: none; background: transparent; z-index: 0; }
+    .btn-z { bottom: 55px; right: 110px; z-index: 10; }
+    .btn-x { bottom: 135px; right: 30px; z-index: 10; }
   </style>
 </head>
 <body>
@@ -103,7 +104,9 @@
   <div id="mobile-ui">
     <div class="fs-btn" onclick="toggleFullScreen()" title="전체 화면">⛶</div>
     <div id="joystick-zone" class="joystick-zone">
-      <div id="joystick-knob" class="joystick-knob"></div>
+      <div id="joystick-base" class="joystick-base">
+        <div id="joystick-knob" class="joystick-knob"></div>
+      </div>
     </div>
     <div id="btn-z" class="action-btn btn-z">Z</div>
     <div id="btn-x" class="action-btn btn-x">X</div>
@@ -385,16 +388,13 @@
     window.addEventListener('DOMContentLoaded', () => {
         let joyZone = document.getElementById('joystick-zone');
         let joyKnob = document.getElementById('joystick-knob');
+        let joyBase = document.getElementById('joystick-base');
         let joyActive = false; let joyTouchId = null;
-        let joyCenterX = 0; let joyCenterY = 0;
+        let joyOriginX = 0; let joyOriginY = 0;
 
         function updateJoystick(touch) {
-            let rect = joyZone.getBoundingClientRect();
-            joyCenterX = rect.left + rect.width / 2;
-            joyCenterY = rect.top + rect.height / 2;
-            
-            let dx = touch.clientX - joyCenterX;
-            let dy = touch.clientY - joyCenterY;
+            let dx = touch.clientX - joyOriginX;
+            let dy = touch.clientY - joyOriginY;
             let distance = Math.hypot(dx, dy);
             let maxDist = 60; 
 
@@ -414,6 +414,7 @@
                     if (e.changedTouches[i].identifier === joyTouchId) {
                         joyActive = false; joyTouchId = null;
                         joyDx = 0; joyDy = 0;
+                        joyBase.style.display = 'none';
                         joyKnob.style.transform = `translate(-50%, -50%)`;
                         break;
                     }
@@ -422,10 +423,16 @@
         }
 
         joyZone.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.action-btn') || e.target.closest('.fs-btn')) return;
             e.preventDefault(); 
             if (!joyActive) {
                 let touch = e.changedTouches[0];
                 joyActive = true; joyTouchId = touch.identifier;
+                joyOriginX = touch.clientX;
+                joyOriginY = touch.clientY;
+                joyBase.style.left = joyOriginX + 'px';
+                joyBase.style.top = joyOriginY + 'px';
+                joyBase.style.display = 'block';
                 updateJoystick(touch);
             }
         }, {passive: false});
